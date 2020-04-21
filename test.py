@@ -1,7 +1,12 @@
+from __future__ import absolute_import, division, print_function
 
-import numpy as np 
+import base64
+import matplotlib
+import numpy as np
+import PIL.Image
+
 import tensorflow as tf
-import tf_agents.networks.q_network
+
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.drivers import dynamic_step_driver
 from tf_agents.environments import suite_gym
@@ -13,52 +18,9 @@ from tf_agents.policies import random_tf_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
-from tf_agents.specs import tensor_spec
 
-def compute_avg_return(environment, policy, num_episodes=10):
+num_iterations = 20000 # @param {type:"integer"}
 
-  total_return = 0.0
-  print(environment)
-  for _ in range(num_episodes):
-
-    time_step = environment.reset()
-    print("--------------------------------------------------------------\n------------------------------------------------------------\n")
-    print(time_step)
-    episode_return = 0.0
-
-    while not time_step.is_last():
-      action_step = policy.action(time_step)
-      time_step = environment.step(action_step.action)
-      episode_return += time_step.reward
-    total_return += episode_return
-
-  avg_return = total_return / num_episodes
-  return avg_return.numpy()[0]
-
-
-
-'''
-    SET ENVIROMENTS
-
-'''
-
-train_env = suite_gym.load("SpaceInvaders-ram-v0")
-print(type(train_env))
-eval_env = suite_gym.load("SpaceInvaders-ram-v0")
-train_env.seed(0)
-#train_env = tf_py_environment.TFPyEnvironment(train_py_env)
-print(train_env.observation_spec())
-# print(train_env.observation_spec())
-# print(train_env.action_spec())
-# print(tensor_spec.from_spec(train_env.action_spec()))
-# exit()
-
-
-'''
-    HYPERPARAMTERS
-
-'''
-num_iterations = 1000
 initial_collect_steps = 1000  # @param {type:"integer"} 
 collect_steps_per_iteration = 1  # @param {type:"integer"}
 replay_buffer_max_length = 100000  # @param {type:"integer"}
@@ -70,16 +32,24 @@ log_interval = 200  # @param {type:"integer"}
 num_eval_episodes = 10  # @param {type:"integer"}
 eval_interval = 1000  # @param {type:"integer"}
 
+env_name = 'SpaceInvaders-ram-v0'
+
+
+
+
+
+train_py_env = suite_gym.load(env_name)
+eval_py_env = suite_gym.load(env_name)
+
+train_env = tf_py_environment.TFPyEnvironment(train_py_env)
+eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
+
+
 fc_layer_params = (100,)
 
-'''
-    INITIALIZE DQNETWORK
-
-'''
-
 q_net = q_network.QNetwork(
-    tensor_spec.from_spec(train_env.observation_spec()),
-    tensor_spec.from_spec(train_env.action_spec()),
+    train_env.observation_spec(),
+    train_env.action_spec(),
     fc_layer_params=fc_layer_params)
 
 
@@ -97,39 +67,73 @@ agent = dqn_agent.DqnAgent(
 
 agent.initialize()
 
-print(agent.collect_data_spec)
-
-'''
-    SET POLICIES
-
-'''
-
-
 eval_policy = agent.policy
 collect_policy = agent.collect_policy
-print()
-print(agent.collect_data_spec._fields)
-print(type(collect_policy))
-print(collect_policy)
 
 
-'''
-    replay buffer
-'''
+
+random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(),
+                                                train_env.action_spec())
+
+
+#@test {"skip": true}
+def compute_avg_return(environment, policy, num_episodes=10):
+
+  total_return = 0.0
+  for _ in range(num_episodes):
+
+    time_step = environment.reset()
+    episode_return = 0.0
+
+    while not time_step.is_last():
+      action_step = policy.action(time_step)
+      time_step = environment.step(action_step.action)
+      episode_return += time_step.reward
+    total_return += episode_return
+
+  avg_return = total_return / num_episodes
+  return avg_return.numpy()[0]
+
+
+# See also the metrics module for standard implementations of different metrics.
+# https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
+
+
+compute_avg_return(eval_env, random_policy, num_eval_episodes)
 
 replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
-    data_spec=tensor_spec.from_spec(agent.collect_data_spec),
-    batch_size=batch_size,
+    data_spec=agent.collect_data_spec,
+    batch_size=train_env.batch_size,
     max_length=replay_buffer_max_length)
 
+#@test {"skip": true}
+def collect_step(environment, policy, buffer):
+  time_step = environment.current_time_step()
+  action_step = policy.action(time_step)
+  next_time_step = environment.step(action_step.action)
+  traj = trajectory.from_transition(time_step, action_step, next_time_step)
+
+  # Add trajectory to the replay buffer
+  buffer.add_batch(traj)
+
+def collect_data(env, policy, buffer, steps):
+  for _ in range(steps):
+    collect_step(env, policy, buffer)
+
+collect_data(train_env, random_policy, replay_buffer, steps=100)
+
+# This loop is so common in RL, that we provide standard implementations. 
+# For more details see the drivers module.
+# https://github.com/tensorflow/agents/blob/master/tf_agents/docs/python/tf_agents/drivers.md
 
 
-'''
-    TRAIN
 
-'''
 
-train_env.reset()
+#@test {"skip": true}
+try:
+  %%time
+except:
+  pass
 
 # (Optional) Optimize by wrapping some of the code in a graph using TF function.
 agent.train = common.function(agent.train)
@@ -138,7 +142,7 @@ agent.train = common.function(agent.train)
 agent.train_step_counter.assign(0)
 
 # Evaluate the agent's policy once before training.
-avg_return = compute_avg_return(eval_env, collect_policy, num_eval_episodes)
+avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
 returns = [avg_return]
 
 for _ in range(num_iterations):
@@ -160,3 +164,4 @@ for _ in range(num_iterations):
     avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
     print('step = {0}: Average Return = {1}'.format(step, avg_return))
     returns.append(avg_return)
+
