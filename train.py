@@ -52,7 +52,7 @@ print(train_env.observation_spec())
     HYPERPARAMTERS
 
 '''
-
+num_iterations = 1000
 initial_collect_steps = 1000  # @param {type:"integer"} 
 collect_steps_per_iteration = 1  # @param {type:"integer"}
 replay_buffer_max_length = 100000  # @param {type:"integer"}
@@ -99,6 +99,16 @@ agent.initialize()
 
 eval_policy = agent.policy
 collect_policy = agent.collect_policy
+
+'''
+    replay buffer
+'''
+
+replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+    data_spec=agent.collect_data_spec,
+    batch_size=batch_size,
+    max_length=replay_buffer_max_length)
+
 
 
 '''
