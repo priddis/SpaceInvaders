@@ -91,6 +91,8 @@ agent = dqn_agent.DqnAgent(
 
 agent.initialize()
 
+print(agent.collect_data_spec)
+
 '''
     SET POLICIES
 
@@ -105,7 +107,7 @@ collect_policy = agent.collect_policy
 '''
 
 replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
-    data_spec=agent.collect_data_spec,
+    data_spec=tensor_spec.from_spec(agent.collect_data_spec),
     batch_size=batch_size,
     max_length=replay_buffer_max_length)
 
