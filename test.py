@@ -126,14 +126,14 @@ collect_data(train_env, random_policy, replay_buffer, steps=100)
 # For more details see the drivers module.
 # https://github.com/tensorflow/agents/blob/master/tf_agents/docs/python/tf_agents/drivers.md
 
+dataset = replay_buffer.as_dataset(
+    num_parallel_calls=3, 
+    sample_batch_size=batch_size, 
+    num_steps=2).prefetch(3)
 
 
+iterator = iter(dataset)
 
-#@test {"skip": true}
-try:
-  %%time
-except:
-  pass
 
 # (Optional) Optimize by wrapping some of the code in a graph using TF function.
 agent.train = common.function(agent.train)
