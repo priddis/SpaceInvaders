@@ -1,0 +1,20 @@
+dqnetwork tutorial
+https://www.tensorflow.org/agents/tutorials/1_dqn_tutorial
+
+other tutorials
+https://github.com/tensorflow/agents/tree/master/docs/tutorials
+
+dqnetowrk doc
+https://www.tensorflow.org/agents/api_docs/python/tf_agents/agents/DqnAgent
+https://www.tensorflow.org/agents/api_docs/python/tf_agents/networks/q_network/QNetwork
+
+
+
+
+other
+https://github.com/tensorflow/agents/blob/master/tf_agents/agents/dqn/examples/v1/train_eval_gym.py
+https://github.com/tensorflow/agents/blob/master/tf_agents/environments/atari_wrappers.py
+
+https://github.com/tensorflow/agents/blob/master/tf_agents/environments/suite_gym.py
+https://github.com/tensorflow/agents/tree/master/tf_agents/specs
+https://github.com/tensorflow/agents/tree/master/tf_agents
